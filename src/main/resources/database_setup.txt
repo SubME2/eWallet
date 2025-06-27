@@ -1,0 +1,6 @@
+CREATE DATABASE ewallet_db;
+
+CREATE USER ewallet_user WITH PASSWORD 'password123';
+GRANT ALL PRIVILEGES ON DATABASE ewallet_db TO ewallet_user;
+
+ALTER USER ewallet_user WITH PASSWORD 'password123';
