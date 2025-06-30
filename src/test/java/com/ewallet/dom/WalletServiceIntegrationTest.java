@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +57,10 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
+    @Qualifier("taskExecutor")
+    Executor taskExecutor;
+
+    @Autowired
     private WalletRepository walletRepository;
 
     @Autowired
@@ -62,6 +68,7 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private IdempotencyKeyRepository idempotencyKeyRepository;
+
 
     private User testUser;
     private User receiverUser;
@@ -73,7 +80,7 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
         // and rolls it back.
 
         //deleteAll();
-        walletService = new WalletService(userRepository,walletRepository,transactionRepository,idempotencyKeyRepository);
+        walletService = new WalletService(userRepository,walletRepository,transactionRepository,idempotencyKeyRepository,taskExecutor);
 
         // Register initial users for tests
         registerTestUsers();

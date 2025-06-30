@@ -1,6 +1,5 @@
 package com.ewallet.dom.executable;
 
-import com.ewallet.dom.constant.TransactionRequestType;
 import com.ewallet.dom.exception.EWalletConcurrentExecutionException;
 import com.ewallet.dom.exception.InsufficientFundsException;
 import com.ewallet.dom.model.IdempotencyKey;
