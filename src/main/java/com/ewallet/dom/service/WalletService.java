@@ -1,7 +1,6 @@
 package com.ewallet.dom.service;
 
 import com.ewallet.dom.exception.EWalletConcurrentExecutionException;
-import com.ewallet.dom.exception.InsufficientFundsException;
 import com.ewallet.dom.executable.DepositFund;
 import com.ewallet.dom.executable.TransferFund;
 import com.ewallet.dom.executable.WithdrawFund;
@@ -14,9 +13,9 @@ import com.ewallet.dom.repository.IdempotencyKeyRepository;
 import com.ewallet.dom.repository.TransactionRepository;
 import com.ewallet.dom.repository.UserRepository;
 import com.ewallet.dom.repository.WalletRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.StaleObjectStateException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -24,12 +23,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WalletService {
 
 
@@ -38,14 +35,28 @@ public class WalletService {
     private final TransactionRepository transactionRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
-    ExecutorService service = Executors.newCachedThreadPool();
+    //ExecutorService service = Executors.newCachedThreadPool();
+
+    private final Executor taskExecutor;
+
+    public WalletService(UserRepository userRepository, WalletRepository walletRepository,
+                         TransactionRepository transactionRepository,
+                         IdempotencyKeyRepository idempotencyKeyRepository,
+                         @Qualifier("taskExecutor") Executor taskExecutor) {
+        this.userRepository = userRepository;
+        this.walletRepository = walletRepository;
+        this.transactionRepository = transactionRepository;
+        this.idempotencyKeyRepository = idempotencyKeyRepository;
+        this.taskExecutor = taskExecutor;
+    }
+
     Map<String, CompletableFuture<Wallet>> threadMap = new ConcurrentHashMap<>();
 
 
     public CompletableFuture<Wallet> processTransaction(TransactionRequest transactionRequest,boolean b)  {
         String senderUserName = transactionRequest.senderUserName();
         populateMap(senderUserName);
-        CompletableFuture<Wallet>  walletCompletableFuture = CompletableFuture.supplyAsync(concurrentTransactionProcessor( transactionRequest),service);
+        CompletableFuture<Wallet>  walletCompletableFuture = CompletableFuture.supplyAsync(concurrentTransactionProcessor( transactionRequest),taskExecutor);
         if (threadMap.containsKey(senderUserName)) {
             threadMap.get(senderUserName)
                     .thenRun(()-> threadMap.put(senderUserName,walletCompletableFuture));
@@ -56,7 +67,7 @@ public class WalletService {
 
     private void populateMap(String senderUserName) {
         // Populating map with Complete-able future and completing it at the same time
-        threadMap.putIfAbsent(senderUserName, CompletableFuture.supplyAsync(Wallet::new,service));
+        threadMap.putIfAbsent(senderUserName, CompletableFuture.supplyAsync(Wallet::new,taskExecutor));
     }
 
     public Supplier<Wallet> concurrentTransactionProcessor(TransactionRequest transactionRequest)  {
