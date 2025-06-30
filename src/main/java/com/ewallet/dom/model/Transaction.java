@@ -1,9 +1,8 @@
 package com.ewallet.dom.model;
 
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.ewallet.dom.record.TransactionDetailRecord;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -13,22 +12,16 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
+@Entity(name = "transactions")
 @Table(name = "transactions")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 @EqualsAndHashCode
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-//    @JsonBackReference
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "wallet_id", nullable = false)
-//    private Wallet wallet; // The wallet associated with this transaction (could be sender's or receiver's view)
 
     @Column(name = "wallet_id", nullable = false)
     private UUID walletId;
@@ -41,6 +34,12 @@ public class Transaction {
 
     @Column(nullable = false)
     private double amount;
+
+    @Column(nullable = false)
+    private double preBalance;
+
+    @Column(nullable = false)
+    private double postBalance;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -60,11 +59,11 @@ public class Transaction {
         TRANSFER_RECEIVED
     }
 
-    public Transaction(Wallet wallet, String senderUsername, String receiverUsername, double amount, TransactionType type) {
-        this.walletId = wallet.getId();
-        this.senderUsername = senderUsername;
-        this.receiverUsername = receiverUsername;
-        this.amount = amount;
-        this.type = type;
+    public Transaction(TransactionDetailRecord transactionDetailRecord) {
+        this.walletId = transactionDetailRecord.walletId();
+        this.senderUsername = transactionDetailRecord.senderUserName();
+        this.receiverUsername = transactionDetailRecord.receiverUserName();
+        this.amount = transactionDetailRecord.amount();
+        this.type = transactionDetailRecord.type();
     }
 }

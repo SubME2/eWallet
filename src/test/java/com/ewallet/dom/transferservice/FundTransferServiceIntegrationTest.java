@@ -192,13 +192,13 @@ public class FundTransferServiceIntegrationTest extends BaseIntegrationTest {
 
     private @NotNull TransactionRequest getNewTransactionRequest(double transferAmount) {
         return TransactionMappingService
-                .fromTransferRequest(alice,
+                .fromTransferRequest(alice.getUsername(),
                         getTransferRequest(bob.getUsername(), transferAmount, UUID.randomUUID().toString()));
     }
 
     private @NotNull TransactionRequest getTransactionRequest(double transferAmount, String idempotencyKey) {
         return TransactionMappingService
-                .fromTransferRequest(alice,
+                .fromTransferRequest(alice.getUsername(),
                         getTransferRequest(bob.getUsername(), transferAmount, idempotencyKey));
     }
 

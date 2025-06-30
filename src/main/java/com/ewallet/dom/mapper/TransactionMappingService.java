@@ -11,18 +11,18 @@ import jakarta.validation.Valid;
 
 public class TransactionMappingService {
 
-    public static TransactionRequest fromDepositRequest(User currentUser, @Valid DepositRequest depositRequest) {
-        return new TransactionRequest(currentUser.getId(),null,
+    public static TransactionRequest fromDepositRequest(String  senderUserName, @Valid DepositRequest depositRequest) {
+        return new TransactionRequest(senderUserName,null,
                 depositRequest.getAmount(),depositRequest.getIdempotencyKey(), TransactionRequestType.DEPOSIT,0);
     }
 
-    public static TransactionRequest fromTransferRequest(User currentUser, TransferRequest transferRequest){
-        return new TransactionRequest(currentUser.getId(),transferRequest.getReceiverUsername(),
+    public static TransactionRequest fromTransferRequest(String senderUserName, TransferRequest transferRequest){
+        return new TransactionRequest(senderUserName,transferRequest.getReceiverUsername(),
                 transferRequest.getAmount(),transferRequest.getIdempotencyKey(), TransactionRequestType.TRANSFER,0);
     }
 
-    public static TransactionRequest fromWithdrawRequest(User currentUser, @Valid WithdrawRequest withdrawRequest) {
-        return new TransactionRequest(currentUser.getId(),null,
+    public static TransactionRequest fromWithdrawRequest(String senderUserName, @Valid WithdrawRequest withdrawRequest) {
+        return new TransactionRequest(senderUserName,null,
                 withdrawRequest.getAmount(),withdrawRequest.getIdempotencyKey(), TransactionRequestType.WITHDRAW,0);
     }
 }

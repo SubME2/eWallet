@@ -88,7 +88,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
         int initialBalance = 100;
         int numDeposits = 20;
         double depositAmount = 10.0;
-        TransactionRequest transactionRequest = new TransactionRequest(testUser.getId(),null,initialBalance,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
+        TransactionRequest transactionRequest = new TransactionRequest(testUser.getUsername(),null,initialBalance,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
 
         // Ensure user has initial balance for the test
         CompletableFuture<Wallet> walletCompletableFuture = walletService.processTransaction(transactionRequest, true);
@@ -100,7 +100,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
         final List<CompletableFuture<Void>> all = new ArrayList<>();
 
         for (int i = 0; i < numDeposits; i++) {
-            TransactionRequest transactionRequest1 = new TransactionRequest(testUser.getId(),null,depositAmount,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
+            TransactionRequest transactionRequest1 = new TransactionRequest(testUser.getUsername(),null,depositAmount,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
             walletCompletableFuture = walletService.processTransaction(transactionRequest1, true);
             walletCompletableFuture.get();
             successfulDeposits.incrementAndGet();
@@ -129,7 +129,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
         registerRequest1.setUsername("testuser_wallet4");
         registerRequest1.setPassword("pass1234");
         User testUserX = authService.register(registerRequest1);
-        TransactionRequest transactionRequest = new TransactionRequest(testUserX.getId(),null,initialBalance,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
+        TransactionRequest transactionRequest = new TransactionRequest(testUserX.getUsername(),null,initialBalance,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
         // Ensure user has initial balance for the test
         CompletableFuture<Wallet> walletCompletableFuture = walletService.processTransaction(transactionRequest, true);
         walletCompletableFuture.get();
@@ -141,7 +141,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         final List<CompletableFuture<Wallet>> all = new ArrayList<>();
         for (int i = 0; i < numDeposits; i++) {
-            TransactionRequest transactionRequest1 = new TransactionRequest(testUserX.getId(),null,depositAmount,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
+            TransactionRequest transactionRequest1 = new TransactionRequest(testUserX.getUsername(),null,depositAmount,UUID.randomUUID().toString(),TransactionRequestType.DEPOSIT, 0);
             CompletableFuture<Wallet> v =  walletService.processTransaction(transactionRequest1, true);
             successfulDeposits.incrementAndGet();
             latch.countDown();
@@ -178,7 +178,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         // Deposit initial funds to sender
         walletService.processTransaction(TransactionMappingService
-                .fromDepositRequest(testUser,getDepositRequest(initialBalanceSender, UUID.randomUUID().toString())), true).get();
+                .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalanceSender, UUID.randomUUID().toString())), true).get();
         //walletService.deposit(testUser.getId(), initialBalanceSender, UUID.randomUUID().toString(), 0);
         assertEquals(initialBalanceSender, walletRepository.findByUserId(testUser.getId()).get().getBalance());
         assertEquals(initialBalanceReceiver, walletRepository.findByUserId(receiverUser.getId()).get().getBalance());
@@ -193,7 +193,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
             executorService.submit(() -> {
                 try {
                     CompletableFuture<Wallet> completableFuture =walletService.processTransaction(
-                            TransactionMappingService.fromTransferRequest(testUser,
+                            TransactionMappingService.fromTransferRequest(testUser.getUsername(),
                                     getTransferRequest(receiverUser.getUsername(),transferAmount, idempotencyKey)), true);
                             completableFuture.handle((w,t) -> {if ( t == null) successfulTransfers.incrementAndGet(); return w; });
                             completableFuture.get();
@@ -254,7 +254,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         // Deposit initial funds to sender
         walletService.processTransaction(TransactionMappingService
-                .fromDepositRequest(testUser,getDepositRequest(initialBalanceSender, UUID.randomUUID().toString())), true).get();
+                .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalanceSender, UUID.randomUUID().toString())), true).get();
         //walletService.deposit(testUser.getId(), initialBalanceSender, UUID.randomUUID().toString(), 0);
         assertEquals(initialBalanceSender, walletRepository.findByUserId(testUser.getId()).get().getBalance());
         assertEquals(initialBalanceReceiver, walletRepository.findByUserId(receiverUser.getId()).get().getBalance());
@@ -264,7 +264,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         for (int i = 0; i < numTransfers; i++) {
             final int threadNum = i;
-            TransactionRequest transactionRequest = new TransactionRequest(testUser.getId(),
+            TransactionRequest transactionRequest = new TransactionRequest(testUser.getUsername(),
                     receiverUser.getUsername(),transferAmount,UUID.randomUUID().toString(),TransactionRequestType.TRANSFER, 0);
                 try {
                     CompletableFuture<Wallet> v =  walletService.processTransaction(transactionRequest, true);
@@ -312,7 +312,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         // Deposit initial funds
         CompletableFuture<Wallet> completableFuture = walletService.processTransaction(TransactionMappingService
-                .fromDepositRequest(testUser,getDepositRequest(initialBalance, UUID.randomUUID().toString())), true);
+                .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalance, UUID.randomUUID().toString())), true);
         completableFuture.get();
         //walletService.deposit(testUser.getId(), initialBalance, UUID.randomUUID().toString(), 0);
         assertEquals(initialBalance, walletRepository.findByUserId(testUser.getId()).get().getBalance());
@@ -326,7 +326,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
             executorService.submit(() -> {
                 String idempotencyKey = UUID.randomUUID().toString();
                 try {
-                    CompletableFuture<Wallet> completableFuture2 = walletService.processTransaction(TransactionMappingService.fromWithdrawRequest(testUser,getWithDrawRequest(withdrawalAmount, idempotencyKey)), true);
+                    CompletableFuture<Wallet> completableFuture2 = walletService.processTransaction(TransactionMappingService.fromWithdrawRequest(testUser.getUsername(),getWithDrawRequest(withdrawalAmount, idempotencyKey)), true);
                     completableFuture2.get();
                     //walletService.withdraw(testUser.getId(), withdrawalAmount, idempotencyKey);
                     successfulWithdrawals.incrementAndGet();
@@ -375,7 +375,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         // Deposit initial funds
         walletService.processTransaction(TransactionMappingService
-                .fromDepositRequest(testUser,getDepositRequest(initialBalance, UUID.randomUUID().toString())), true).get();
+                .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalance, UUID.randomUUID().toString())), true).get();
         //walletService.deposit(testUser.getId(), initialBalance, UUID.randomUUID().toString(), 0);
         assertEquals(initialBalance, walletRepository.findByUserId(testUser.getId()).get().getBalance());
 
@@ -384,7 +384,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         for (int i = 0; i < numConcurrentWithdrawals; i++) {
             final int threadNum = i;
-            TransactionRequest transactionRequest = TransactionMappingService.fromWithdrawRequest(testUser,getWithDrawRequest(withdrawalAmount,UUID.randomUUID().toString()));
+            TransactionRequest transactionRequest = TransactionMappingService.fromWithdrawRequest(testUser.getUsername(),getWithDrawRequest(withdrawalAmount,UUID.randomUUID().toString()));
             //TransactionRequest transactionRequest = new TransactionRequest(testUser.getId(),null,withdrawalAmount,UUID.randomUUID().toString(),TransactionRequestType.WITHDRAW, 0);
 
                 try {
@@ -432,7 +432,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
         // Deposit initial funds
         double initialBalance = 10000.0;
         CompletableFuture<Wallet> completableFuture = walletService.processTransaction(TransactionMappingService
-                .fromDepositRequest(testUser,getDepositRequest(initialBalance, UUID.randomUUID().toString())), true);
+                .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalance, UUID.randomUUID().toString())), true);
         completableFuture.get();
         //walletService.deposit(testUser.getId(), initialBalance, UUID.randomUUID().toString(), 0);
         assertEquals(initialBalance, walletRepository.findByUserId(testUser.getId()).get().getBalance());
@@ -462,7 +462,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
         for (int i = 0; i < CONCURRENT_REQUESTS; i++) {
             tasks.add(() -> {
                 CompletableFuture<Wallet> completableFuture =  walletService.processTransaction(TransactionMappingService
-                        .fromTransferRequest(testUser,
+                        .fromTransferRequest(testUser.getUsername(),
                                 getTransferRequest(receiverUser.getUsername(), amount, UUID.randomUUID().toString())), true);
                 completableFuture.get();
                 //while (!completableFuture.isDone()){ System.out.print(" Waiting! ");}

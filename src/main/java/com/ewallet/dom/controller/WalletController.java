@@ -27,33 +27,29 @@ public class WalletController {
 
     @GetMapping("/balance")
     public ResponseEntity<WalletResponse> getBalance(@AuthenticationPrincipal UserDetails currentUser) {
-        User principalUser = userService.getUserByName(currentUser.getUsername());
-        Wallet wallet = walletService.findWalletByUserID(principalUser.getId());
+        Wallet wallet = walletService.findWalletByUserID(currentUser.getUsername());
         return ResponseEntity.ok(new WalletResponse(wallet.getBalance(),"User's current balance."));
     }
 
     @PostMapping("/deposit")
     public CompletableFuture<Wallet> deposit(@AuthenticationPrincipal UserDetails currentUser, @Valid @RequestBody DepositRequest request) {
-        User principalUser = userService.getUserByName(currentUser.getUsername());
-        return walletService.processTransaction(TransactionMappingService.fromDepositRequest(principalUser,request), true);
+        return walletService.processTransaction(TransactionMappingService.fromDepositRequest(currentUser.getUsername(),request), true);
     }
 
     @PostMapping("/withdraw")
     public CompletableFuture<Wallet> withdraw(@AuthenticationPrincipal UserDetails currentUser, @Valid @RequestBody WithdrawRequest request) {
-        User principalUser = userService.getUserByName(currentUser.getUsername());
-            return walletService.processTransaction(TransactionMappingService.fromWithdrawRequest(principalUser,request), true);
+            return walletService.processTransaction(TransactionMappingService.fromWithdrawRequest(currentUser.getUsername(),request), true);
     }
 
     @PostMapping("/transfer")
     public CompletableFuture<Wallet> transfer(@AuthenticationPrincipal UserDetails currentUser, @Valid @RequestBody TransferRequest request) {
-        User principalUser = userService.getUserByName(currentUser.getUsername());
-            return walletService.processTransaction(TransactionMappingService.fromTransferRequest(principalUser,request), true);
+            return walletService.processTransaction(TransactionMappingService.fromTransferRequest(currentUser.getUsername(),request), true);
     }
 
     @GetMapping("/transactions")
     public ResponseEntity<List<Transaction>> getTransactions(@AuthenticationPrincipal UserDetails currentUser) {
         User principalUser = userService.getUserByName(currentUser.getUsername());
-        Wallet wallet = walletService.findWalletByUserID(principalUser.getId());
+        Wallet wallet = walletService.findWalletByUserID(principalUser.getUsername());
         List<Transaction> transactions = walletService.getTransactionsForWallet(wallet.getId());
         return ResponseEntity.ok(transactions);
     }

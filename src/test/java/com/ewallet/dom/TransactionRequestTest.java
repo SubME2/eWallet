@@ -16,31 +16,31 @@ class TransactionRequestTest {
     @Test
     void shouldThrowNullPointerExceptionWhenReceiverUsernameIsNullForTransfer() {
         assertThrows(NullPointerException.class, () -> new TransactionRequest(
-                1L, null, 100.0, "idempotencyKey", TransactionRequestType.TRANSFER, 0));
+                "sender", null, 100.0, "idempotencyKey", TransactionRequestType.TRANSFER, 0));
     }
 
     @Test
     void shouldThrowIllegalArgumentExceptionWhenAmountIsNegative() {
         assertThrows(IllegalArgumentException.class, () -> new TransactionRequest(
-                1L, "receiver", -100.0, "idempotencyKey", TransactionRequestType.TRANSFER, 0));
+                "sender", "receiver", -100.0, "idempotencyKey", TransactionRequestType.TRANSFER, 0));
     }
 
     @Test
     void shouldThrowNullPointerExceptionWhenIdempotencyKeyIsNull() {
         assertThrows(NullPointerException.class, () -> new TransactionRequest(
-                1L, "receiver", 100.0, null, TransactionRequestType.TRANSFER, 0));
+                "sender", "receiver", 100.0, null, TransactionRequestType.TRANSFER, 0));
     }
 
     @Test
     void shouldThrowNullPointerExceptionWhenTransactionRequestTypeIsNull() {
         assertThrows(NullPointerException.class, () -> new TransactionRequest(
-                1L, "receiver", 100.0, "idempotencyKey", null, 0));
+                "sender", "receiver", 100.0, "idempotencyKey", null, 0));
     }
 
     @Test
     void shouldNotThrowExceptionForValidTransferRequest() {
         assertDoesNotThrow(() -> new TransactionRequest(
-                1L, "receiver", 100.0, "idempotencyKey", TransactionRequestType.TRANSFER, 0));
+                "sender", "receiver", 100.0, "idempotencyKey", TransactionRequestType.TRANSFER, 0));
     }
 }
 
