@@ -50,25 +50,12 @@ public class WalletService {
         this.taskExecutor = taskExecutor;
     }
 
-    Map<String, CompletableFuture<Wallet>> threadMap = new ConcurrentHashMap<>();
-
-
     public CompletableFuture<Wallet> processTransaction(TransactionRequest transactionRequest,boolean b)  {
-        String senderUserName = transactionRequest.senderUserName();
-        populateMap(senderUserName);
         CompletableFuture<Wallet>  walletCompletableFuture = CompletableFuture.supplyAsync(concurrentTransactionProcessor( transactionRequest),taskExecutor);
-        if (threadMap.containsKey(senderUserName)) {
-            threadMap.get(senderUserName)
-                    .thenRun(()-> threadMap.put(senderUserName,walletCompletableFuture));
-        }
+        walletCompletableFuture.orTimeout(5, TimeUnit.SECONDS);
         return walletCompletableFuture;
     }
 
-
-    private void populateMap(String senderUserName) {
-        // Populating map with Complete-able future and completing it at the same time
-        threadMap.putIfAbsent(senderUserName, CompletableFuture.supplyAsync(Wallet::new,taskExecutor));
-    }
 
     public Supplier<Wallet> concurrentTransactionProcessor(TransactionRequest transactionRequest)  {
         RepoRecord repoRecord = getRepoRecord();
