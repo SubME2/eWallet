@@ -82,7 +82,7 @@ Follow these steps to get the E-Wallet application up and running on your local 
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/e-wallet-app.git
+    git clone https://github.com/SubME2/eWallet.git
     cd e-wallet-app
     ```
 
@@ -99,7 +99,7 @@ Follow these steps to get the E-Wallet application up and running on your local 
         spring.datasource.url=jdbc:postgresql://localhost:5432/ewallet_db
         spring.datasource.username=ewallet_user
         spring.datasource.password=ewallet_pass
-        spring.jpa.hibernate.ddl-auto=update # Or validate for production
+        spring.jpa.hibernate.ddl-auto=update # Use create for 1st use Or validate for production
         ```
 
 3.  **Build the project:**
@@ -133,12 +133,6 @@ The API is built as a non-blocking asynchronous RESTful service.
   * `POST /api/wallet/deposit` (Requires `amount` and `idempotencyKey` in request body)
   * `POST /api/wallet/withdraw` (Requires `amount` and `idempotencyKey` in request body)
   * `POST /api/wallet/transfer` (Requires `receiverUsername`, `amount`, and `idempotencyKey` in request body)
-
-**Ledger/History (Requires Authentication):**
-
-  * `GET /api/ledger/entries` (Get all ledger entries for the current user's wallet)
-  * `GET /api/ledger/entries/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` (Get ledger entries within a date range)
-  * `GET /api/ledger/entries/summary/daily?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` (Get daily summarized ledger entries within a date range)
 
 *Detailed request/response bodies and examples can be found in the project's Postman collection or API documentation (if available).*
 
@@ -180,6 +174,6 @@ Please ensure your code adheres to the project's coding standards and all tests 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
+This project is licensed under the GPL-3.0 license .
 
 -----
