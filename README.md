@@ -134,6 +134,8 @@ The API is built as a non-blocking asynchronous RESTful service.
   * `POST /api/wallet/withdraw` (Requires `amount` and `idempotencyKey` in request body)
   * `POST /api/wallet/transfer` (Requires `receiverUsername`, `amount`, and `idempotencyKey` in request body)
 
+Swagger link : http://localhost:8080/swagger-ui/index.html
+
 *Detailed request/response bodies and examples can be found in the project's Postman collection or API documentation (if available).*
 
 ## Security
