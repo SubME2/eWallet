@@ -6,6 +6,7 @@ import com.ewallet.dom.executable.DepositFund;
 import com.ewallet.dom.executable.TransferFund;
 import com.ewallet.dom.executable.WithdrawFund;
 import com.ewallet.dom.model.Transaction;
+import com.ewallet.dom.model.User;
 import com.ewallet.dom.model.Wallet;
 import com.ewallet.dom.record.RepoRecord;
 import com.ewallet.dom.record.TransactionRequest;
@@ -38,29 +39,28 @@ public class WalletService {
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     ExecutorService service = Executors.newCachedThreadPool();
-    Map<Long, CompletableFuture<Wallet>> threadMap = new ConcurrentHashMap<>();
+    Map<String, CompletableFuture<Wallet>> threadMap = new ConcurrentHashMap<>();
 
 
     public CompletableFuture<Wallet> processTransaction(TransactionRequest transactionRequest,boolean b)  {
-        Long userId = transactionRequest.userId();
-        populateMap(userId);
+        String senderUserName = transactionRequest.senderUserName();
+        populateMap(senderUserName);
         CompletableFuture<Wallet>  walletCompletableFuture = CompletableFuture.supplyAsync(concurrentTransactionProcessor( transactionRequest),service);
-        if (threadMap.containsKey(userId)) {
-            threadMap.get(userId)
-                    .thenRun(()-> threadMap.put(userId,walletCompletableFuture));
+        if (threadMap.containsKey(senderUserName)) {
+            threadMap.get(senderUserName)
+                    .thenRun(()-> threadMap.put(senderUserName,walletCompletableFuture));
         }
         return walletCompletableFuture;
     }
 
 
-    private void populateMap(Long userId) {
+    private void populateMap(String senderUserName) {
         // Populating map with Complete-able future and completing it at the same time
-        threadMap.putIfAbsent(userId, CompletableFuture.supplyAsync(Wallet::new,service));
+        threadMap.putIfAbsent(senderUserName, CompletableFuture.supplyAsync(Wallet::new,service));
     }
 
     public Supplier<Wallet> concurrentTransactionProcessor(TransactionRequest transactionRequest)  {
-        RepoRecord repoRecord = new RepoRecord(userRepository,walletRepository,transactionRepository,idempotencyKeyRepository);
-        final Long userId = transactionRequest.userId();
+        RepoRecord repoRecord = getRepoRecord();
         try {
             switch (transactionRequest.transactionRequestType()){
                 case DEPOSIT -> {
@@ -75,18 +75,23 @@ public class WalletService {
                 default -> throw new IllegalArgumentException("Unknow transaction type.");
             }
         }catch (StaleObjectStateException | ObjectOptimisticLockingFailureException e){
-            String message = "Concurrent deposit exception for userId: " + userId;
+            String message = "Concurrent deposit exception for userId: " + transactionRequest.senderUserName();
             throw new EWalletConcurrentExecutionException(transactionRequest,message);
         }
+    }
+
+    private RepoRecord getRepoRecord() {
+        return new RepoRecord(userRepository, walletRepository, transactionRepository, idempotencyKeyRepository);
     }
 
 
     //https://medium.com/javarevisited/solution-for-optimistic-locking-failed-database-transaction-issue-4a87880bbfd2
     //https://medium.com/@AlexanderObregon/how-to-adopt-resiliency-patterns-with-spring-boot-circuit-breaker-retries-etc-1b65e63df586
 
-    public Wallet findWalletByUserID(Long senderUserId) {
-        return walletRepository.findByUserId(senderUserId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + senderUserId));
+    public Wallet findWalletByUserID(String senderUserName) {
+        User user = userRepository.findByUsername(senderUserName).orElseThrow();
+        return walletRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + senderUserName));
     }
 
     public List<Transaction> getTransactionsForWallet(UUID walletId) {

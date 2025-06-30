@@ -8,6 +8,7 @@ import com.ewallet.dom.model.Transaction;
 import com.ewallet.dom.model.User;
 import com.ewallet.dom.model.Wallet;
 import com.ewallet.dom.record.RepoRecord;
+import com.ewallet.dom.record.TransactionDetailRecord;
 import com.ewallet.dom.record.TransactionRequest;
 import com.ewallet.dom.repository.IdempotencyKeyRepository;
 import com.ewallet.dom.repository.TransactionRepository;
@@ -38,25 +39,24 @@ public class TransferFund implements Runnable, Callable<Wallet>, Supplier<Wallet
     private Wallet result;
 
     private Wallet transferFund(final TransactionRequest transactionRequest) {
-         final Long senderUserId = transactionRequest.userId();
+         final String senderUserName = transactionRequest.senderUserName();
          final String receiverName = transactionRequest.receiverUsername();
          final double amount = transactionRequest.amount();
          final String idempotencyKey = transactionRequest.idempotencyKey();
 
-        UserRepository userRepository = repoRecord.userRepository(); //(UserRepository) getRepository(UserRepository.class,rfs);
-        WalletRepository walletRepository = repoRecord.walletRepository(); //(WalletRepository) getRepository(WalletRepository.class,rfs);
-        TransactionRepository transactionRepository = repoRecord.transactionRepository();//(TransactionRepository) getRepository(TransactionRepository.class,rfs);
-        IdempotencyKeyRepository idempotencyKeyRepository = repoRecord.idempotencyKeyRepository();//(IdempotencyKeyRepository) getRepository(IdempotencyKeyRepository.class,rfs);
-
-        User senderUser = userRepository.findById(senderUserId).orElseThrow();
+        UserRepository userRepository = repoRecord.userRepository();
+        WalletRepository walletRepository = repoRecord.walletRepository();
+        TransactionRepository transactionRepository = repoRecord.transactionRepository();
+        IdempotencyKeyRepository idempotencyKeyRepository = repoRecord.idempotencyKeyRepository();
+        User senderUser = userRepository.findByUsername(senderUserName).orElseThrow();
         User receiverUser = userRepository.findByUsername(receiverName).orElseThrow();
 
         if (senderUser.getId().equals(receiverUser.getId())) {
             throw new IllegalArgumentException("Cannot transfer funds to yourself.");
         }
 
-        Wallet senderWallet = walletRepository.findByUserId(senderUserId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + senderUserId)); // This will fetch the sender's wallet as part of the transaction
+        Wallet senderWallet = walletRepository.findByUserId(senderUser.getId())
+                .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + senderUserName)); // This will fetch the sender's wallet as part of the transaction
         // Idempotency check
         if (idempotencyKeyRepository.existsByKey(idempotencyKey)) {
             log.debug("Idempotent transfer request detected and ignored for key: {}", idempotencyKey);
@@ -69,34 +69,42 @@ public class TransferFund implements Runnable, Callable<Wallet>, Supplier<Wallet
                 .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + receiverUser.getId())); // This will fetch the receiver's wallet as part of the transaction
 
         // Debit sender
+        double senderPreBalance = senderWallet.getBalance();
+        double senderPostBalance = senderPreBalance - amount;
         senderWallet.setBalance(senderWallet.getBalance() - amount);
         //saveWallet(senderWallet); // Saves and increments version for senderWallet
 
         // Credit receiver
+        double receiverPreBalance = receiverWallet.getBalance();
+        double receiverPostBalance = receiverPreBalance + amount;
         receiverWallet.setBalance(receiverWallet.getBalance() + amount);
         //saveWallet(receiverWallet); // Saves and increments version for receiverWallet
 
         walletRepository.saveAll(List.of(senderWallet, receiverWallet));
 
         // Create sender's transaction record
-        Transaction senderTx = new Transaction(
-                senderWallet,
+        Transaction senderTx = new Transaction(new TransactionDetailRecord(
+                senderWallet.getId(),
                 senderUser.getUsername(),
                 receiverName,
                 amount,
+                senderPreBalance,
+                senderPostBalance,
                 Transaction.TransactionType.TRANSFER_SENT
-        );
+        ));
         //senderWallet.addTransaction(senderTx);
         //transactionRepository.save(senderTx);
 
         // Create receiver's transaction record
-        Transaction receiverTx = new Transaction(
-                receiverWallet,
+        Transaction receiverTx = new Transaction(new TransactionDetailRecord(
+                receiverWallet.getId(),
                 senderUser.getUsername(),
                 receiverName,
                 amount,
+                receiverPreBalance,
+                receiverPostBalance,
                 Transaction.TransactionType.TRANSFER_RECEIVED
-        );
+        ));
         //receiverWallet.addTransaction(receiverTx);
         //transactionRepository.save(receiverTx);
         transactionRepository.saveAll(List.of(senderTx, receiverTx));
