@@ -13,6 +13,8 @@ import com.ewallet.dom.repository.IdempotencyKeyRepository;
 import com.ewallet.dom.repository.TransactionRepository;
 import com.ewallet.dom.repository.UserRepository;
 import com.ewallet.dom.repository.WalletRepository;
+import com.ewallet.dom.util.LogExecution;
+import com.ewallet.dom.util.LogExecutionTime;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.StaleObjectStateException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -50,6 +52,8 @@ public class WalletService {
         this.taskExecutor = taskExecutor;
     }
 
+    @LogExecution
+    @LogExecutionTime
     public CompletableFuture<Wallet> processTransaction(TransactionRequest transactionRequest,boolean b)  {
         CompletableFuture<Wallet>  walletCompletableFuture = CompletableFuture.supplyAsync(concurrentTransactionProcessor( transactionRequest),taskExecutor);
         walletCompletableFuture.orTimeout(5, TimeUnit.SECONDS);
