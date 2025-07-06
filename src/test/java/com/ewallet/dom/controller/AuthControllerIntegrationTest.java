@@ -6,25 +6,27 @@ import com.ewallet.dom.dto.RegisterRequest;
 import com.ewallet.dom.model.User;
 import com.ewallet.dom.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.assertj.core.api.Assertions.assertThat;
 
-
+@Slf4j
 @AutoConfigureMockMvc
 @Transactional // Rollback transactions after each test
 public class AuthControllerIntegrationTest  extends BaseIntegrationTest {
@@ -90,11 +92,13 @@ public class AuthControllerIntegrationTest  extends BaseIntegrationTest {
         loginRequest.setUsername("testuser");
         loginRequest.setPassword("password123");
 
-        mockMvc.perform(post("/api/auth/login")
+        MvcResult resultActions = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("User logged in successfully!"));
+                .andExpect(jsonPath("$.message", equalTo("Login successful")))
+                .andExpect(jsonPath("$.jwtToken", notNullValue()))
+                .andReturn();
     }
 
     @Test
@@ -110,7 +114,8 @@ public class AuthControllerIntegrationTest  extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(content().string("Invalid username or password."));
+                .andExpect(jsonPath("$.message", equalTo("Invalid username or password.")))
+                .andExpect(jsonPath("$.jwtToken", nullValue()));
     }
 
     private @NotNull User getUser(String existinguser, String password) {

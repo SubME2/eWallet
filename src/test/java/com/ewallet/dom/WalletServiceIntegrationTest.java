@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,7 +60,7 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     @Qualifier("taskExecutor")
-    Executor taskExecutor;
+    ThreadPoolTaskExecutor taskExecutor;
 
     @Autowired
     private WalletRepository walletRepository;

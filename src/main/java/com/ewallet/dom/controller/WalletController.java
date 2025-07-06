@@ -48,8 +48,8 @@ public class WalletController {
 
     @GetMapping("/transactions")
     public ResponseEntity<List<Transaction>> getTransactions(@AuthenticationPrincipal UserDetails currentUser) {
-        User principalUser = userService.getUserByName(currentUser.getUsername());
-        Wallet wallet = walletService.findWalletByUserID(principalUser.getUsername());
+       // User principalUser = userService.getUserByName(currentUser.getUsername());
+        Wallet wallet = walletService.findWalletByUserID(currentUser.getUsername());
         List<Transaction> transactions = walletService.getTransactionsForWallet(wallet.getId());
         return ResponseEntity.ok(transactions);
     }
