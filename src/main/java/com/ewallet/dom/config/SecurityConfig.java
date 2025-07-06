@@ -30,7 +30,6 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -54,8 +53,6 @@ public class SecurityConfig {
     private UserDetailsService userDetailsService; // Your UserDetailsService
 
     private final JwtRequestFilter jwtRequestFilter;
-
-    private final UserRepository userRepository; // Use AuthService to load user details
 
     private static final String AUTH_PATH = "/api/auth/**";
     private static final String[] AUTH_WHITELIST = {
@@ -83,15 +80,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable) // Disable CSRF for API-based apps
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(new AuthenticationEntryPoint(){
-                            @Override
-                            public void commence(HttpServletRequest request,
-                                                 HttpServletResponse response,
-                                                 AuthenticationException authException) throws IOException, ServletException {
-                                // This is invoked when an unauthenticated user tries to access a protected resource.
-                                // We send a 401 Unauthorized response.
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
-                            }
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // This is invoked when an unauthenticated user tries to access a protected resource.
+                            // We send a 401 Unauthorized response.
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
