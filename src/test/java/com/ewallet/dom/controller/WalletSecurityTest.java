@@ -62,7 +62,7 @@ public class WalletSecurityTest extends BaseIntegrationTest {
     private TransactionRepository transactionRepository;
     @Autowired
     private IdempotencyKeyRepository idempotencyKeyRepository;
-@Autowired
+    @Autowired
     private AuthenticationManager authenticationManager;
 
     @Autowired
@@ -72,7 +72,8 @@ public class WalletSecurityTest extends BaseIntegrationTest {
     private Wallet testUserWallet;
 
     @BeforeEach
-    void setUp() {}
+    void setUp() {
+    }
 
     @Test
     public void checkIfPrincipalPropagatedToExecutorService() throws ExecutionException, InterruptedException {
@@ -90,11 +91,11 @@ public class WalletSecurityTest extends BaseIntegrationTest {
 
         CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> SecurityContextHolder.getContext()
                 .getAuthentication()
-                .getName(),e);
+                .getName(), e);
 
 
         try {
-            assertEquals(registerRequest.getUsername(),completableFuture.get());
+            assertEquals(registerRequest.getUsername(), completableFuture.get());
         } finally {
             e.shutdown();
         }
