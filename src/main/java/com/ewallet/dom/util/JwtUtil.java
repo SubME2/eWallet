@@ -2,10 +2,10 @@ package com.ewallet.dom.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import java.security.*;
 import java.util.Date;
@@ -13,17 +13,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import static java.security.KeyPairGenerator.getInstance;
+
 @Component
 public class JwtUtil {
 
+    @Value("${jwt.expiration}") // Token expiration time in milliseconds
+    private long EXPIRATION_TIME; // e.g., 864_000_000 (10 days)
+
     static PublicKey PUBLIC_KEY;
-    static PrivateKey privateKey;
+    static PrivateKey PRIVATE_KEY;
+
     static {
 
         // 1. Create a KeyPairGenerator instance for RSA algorithm
-        KeyPairGenerator keyPairGenerator = null;
+        KeyPairGenerator keyPairGenerator ;
         try {
-            keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator = getInstance("RSA");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
@@ -37,12 +43,10 @@ public class JwtUtil {
 
         // 4. Extract the Public and Private Keys from the KeyPair
         PUBLIC_KEY = keyPair.getPublic();
-        privateKey = keyPair.getPrivate();
+        PRIVATE_KEY = keyPair.getPrivate();
 
     }
 
-    @Value("${jwt.expiration}") // Token expiration time in milliseconds
-    private long EXPIRATION_TIME; // e.g., 864_000_000 (10 days)
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
@@ -51,12 +55,13 @@ public class JwtUtil {
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
+        Assert.notNull(PRIVATE_KEY,"Private should not be null.");
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME)) // Set expiration
-                .signWith(privateKey)
+                .signWith(PRIVATE_KEY)
                 .compact();
     }
 
@@ -80,6 +85,7 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
+        Assert.notNull(PUBLIC_KEY,"PUBLIC_KEY should not be null.");
         return Jwts.parser().verifyWith(PUBLIC_KEY).build().parseSignedClaims(token).getPayload();
     }
 
