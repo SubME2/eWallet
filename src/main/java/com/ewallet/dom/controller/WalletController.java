@@ -4,16 +4,20 @@ import com.ewallet.dom.dto.*;
 import com.ewallet.dom.model.Transaction;
 import com.ewallet.dom.model.Wallet;
 import com.ewallet.dom.mapper.TransactionMappingService;
+import com.ewallet.dom.service.TransactionService;
 import com.ewallet.dom.service.UserService;
 import com.ewallet.dom.service.WalletService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
@@ -22,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 public class WalletController {
 
     private final WalletService walletService;
+    private final TransactionService transactionService;
 
     @GetMapping("/balance")
     public ResponseEntity<WalletResponse> getBalance(@AuthenticationPrincipal UserDetails currentUser) {
@@ -50,4 +55,17 @@ public class WalletController {
         List<Transaction> transactions = walletService.getTransactionsForWallet(wallet.getId());
         return ResponseEntity.ok(transactions);
     }
+
+    @GetMapping("/transactions/range")
+    public ResponseEntity<List<Transaction>> getTransactionsForCurrentUserByDateRange(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        List<Transaction> transactions = transactionService.getTransactionsForWalletByDateRange(
+                currentUser.getUsername(), startDate, endDate
+        );
+        return ResponseEntity.ok(transactions);
+    }
+
 }
