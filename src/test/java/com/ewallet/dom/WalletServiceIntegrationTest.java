@@ -128,8 +128,8 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
         // Verify transaction is recorded
         List<Transaction> transactions = transactionRepository.findByWalletIdOrderByTimestampDesc(wallet.getId());
         assertThat(transactions).hasSize(1);
-        assertEquals(Transaction.TransactionType.DEPOSIT, transactions.get(0).getType());
-        assertEquals(100.0, transactions.get(0).getAmount());
+        assertEquals(Transaction.TransactionType.DEPOSIT, transactions.getFirst().getType());
+        assertEquals(100.0, transactions.getFirst().getAmount());
 
         // Verify idempotency key is recorded
         assertTrue(idempotencyKeyRepository.existsByKey(idempotencyKey));
@@ -184,8 +184,8 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
         // Verify transaction is recorded (1 deposit + 1 withdrawal)
         List<Transaction> transactions = transactionRepository.findByWalletIdOrderByTimestampDesc(wallet.getId());
         assertThat(transactions).hasSize(2);
-        assertEquals(Transaction.TransactionType.WITHDRAWAL, transactions.get(0).getType());
-        assertEquals(50.0, transactions.get(0).getAmount());
+        assertEquals(Transaction.TransactionType.WITHDRAWAL, transactions.getFirst().getType());
+        assertEquals(50.0, transactions.getFirst().getAmount());
 
         // Verify idempotency key is recorded
         assertTrue(idempotencyKeyRepository.existsByKey(idempotencyKey));
@@ -262,20 +262,20 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
         // Verify sender's transactions (1 deposit + 1 transfer_sent)
         List<Transaction> senderTransactions = transactionRepository.findByWalletIdOrderByTimestampDesc(wallet.getId());
         assertThat(senderTransactions).hasSize(2);
-        assertEquals(Transaction.TransactionType.TRANSFER_SENT, senderTransactions.get(0).getType());
-        assertEquals(100.0, senderTransactions.get(0).getAmount());
-        assertEquals(receiverUser.getUsername(), senderTransactions.get(0).getReceiverUsername());
-        assertEquals(testUser.getUsername(), senderTransactions.get(0).getSenderUsername());
+        assertEquals(Transaction.TransactionType.TRANSFER_SENT, senderTransactions.getFirst().getType());
+        assertEquals(100.0, senderTransactions.getFirst().getAmount());
+        assertEquals(receiverUser.getUsername(), senderTransactions.getFirst().getReceiverUsername());
+        assertEquals(testUser.getUsername(), senderTransactions.getFirst().getSenderUsername());
 
 
         // Verify receiver's transactions (1 transfer_received)
         Wallet walletReceiver = walletRepository.findByUserId(receiverUser.getId()).orElseThrow();
         List<Transaction> receiverTransactions = transactionRepository.findByWalletIdOrderByTimestampDesc(walletReceiver.getId());
         assertThat(receiverTransactions).hasSize(1);
-        assertEquals(Transaction.TransactionType.TRANSFER_RECEIVED, receiverTransactions.get(0).getType());
-        assertEquals(100.0, receiverTransactions.get(0).getAmount());
-        assertEquals(receiverUser.getUsername(), receiverTransactions.get(0).getReceiverUsername());
-        assertEquals(testUser.getUsername(), receiverTransactions.get(0).getSenderUsername());
+        assertEquals(Transaction.TransactionType.TRANSFER_RECEIVED, receiverTransactions.getFirst().getType());
+        assertEquals(100.0, receiverTransactions.getFirst().getAmount());
+        assertEquals(receiverUser.getUsername(), receiverTransactions.getFirst().getReceiverUsername());
+        assertEquals(testUser.getUsername(), receiverTransactions.getFirst().getSenderUsername());
 
         // Verify idempotency key is recorded
         assertTrue(idempotencyKeyRepository.existsByKey(idempotencyKey));
@@ -391,7 +391,7 @@ class WalletServiceIntegrationTest extends BaseIntegrationTest {
 
         assertThat(transactions).hasSize(2);
         // Assert order (latest first due to OrderByTimestampDesc)
-        assertEquals(Transaction.TransactionType.WITHDRAWAL, transactions.get(0).getType());
+        assertEquals(Transaction.TransactionType.WITHDRAWAL, transactions.getFirst().getType());
         assertEquals(Transaction.TransactionType.DEPOSIT, transactions.get(1).getType());
 //                });
     }
