@@ -4,27 +4,19 @@ package com.ewallet.dom.filter;
 import com.ewallet.dom.util.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureException;
 import io.micrometer.core.instrument.config.validate.ValidationException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextHolderFilter;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -35,26 +27,23 @@ import java.util.Map;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtRequestFilter extends OncePerRequestFilter {
 
-    private final Map<String,UsernamePasswordAuthenticationToken> map = new HashMap<>();
+    private final Map<String, UsernamePasswordAuthenticationToken> map = new HashMap<>();
 
-    @Autowired
-    private HandlerExceptionResolver handlerExceptionResolver;
-    @Autowired
-    private UserDetailsService userDetailsService; // Your UserDetailsService
-    @Autowired
-    private JwtUtil jwtUtil; // Your JWT utility
+
+    private final HandlerExceptionResolver handlerExceptionResolver;
+    private final UserDetailsService userDetailsService; // Your UserDetailsService
+    private final JwtUtil jwtUtil; // Your JWT utility
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 
         try {
             final String authorizationHeader = request.getHeader("Authorization");
 
-            String username = null;
-            String jwt = null;
+            String username, jwt;
 
             // Check if Authorization header exists and starts with "Bearer "
             if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
@@ -62,18 +51,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 if (map.containsKey(jwt) && jwtUtil.validateToken(jwt, (UserDetails) map.get(jwt).getPrincipal())) {
                     loadSecurityContext(map.get(jwt));
                 } else {
-//                try {
                     username = jwtUtil.extractUsername(jwt); // Extract username from token
-//                } catch (IllegalArgumentException e) {
-//                    logger.error("Unable to get JWT Token", e);
-//                } catch (ExpiredJwtException e) {
-//                    logger.error("JWT Token has expired", e);
-//                } catch (ValidationException e) {
-//                    logger.error("Invalid JWT Signature", e);
-//                } catch (MalformedJwtException e) {
-//                    logger.error("Malformed JWT Token", e);
-//                }
-//                }
 
                     // If username is found and no authentication is currently set in the SecurityContext
                     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -94,28 +72,16 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             }
             // Continue the filter chain
             chain.doFilter(request, response);
-        } catch ( IllegalArgumentException | UsernameNotFoundException |
-                  ValidationException | MalformedJwtException |
-                  ExpiredJwtException | IOException | ServletException e) {
-            log.error("Error while authentication",e);
-            handlerExceptionResolver.resolveException(request,response,null,e);
+        } catch (IllegalArgumentException | UsernameNotFoundException |
+                 ValidationException | MalformedJwtException |
+                 ExpiredJwtException | IOException | ServletException e) {
+            log.error("Error while authentication", e);
+            handlerExceptionResolver.resolveException(request, response, null, e);
         }
     }
 
     private void loadSecurityContext(UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken) {
         // Set the authentication in the SecurityContext
         SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
-        //SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
-
     }
-
-//    @Bean
-//    public InitializingBean initializingBean() {
-//        return () -> SecurityContextHolder.setStrategyName(
-//                SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
-//    }
-
-
-
-
 }

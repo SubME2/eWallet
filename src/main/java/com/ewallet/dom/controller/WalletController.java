@@ -2,7 +2,6 @@ package com.ewallet.dom.controller;
 
 import com.ewallet.dom.dto.*;
 import com.ewallet.dom.model.Transaction;
-import com.ewallet.dom.model.User;
 import com.ewallet.dom.model.Wallet;
 import com.ewallet.dom.mapper.TransactionMappingService;
 import com.ewallet.dom.service.UserService;
@@ -23,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 public class WalletController {
 
     private final WalletService walletService;
-    private final UserService userService;
 
     @GetMapping("/balance")
     public ResponseEntity<WalletResponse> getBalance(@AuthenticationPrincipal UserDetails currentUser) {
@@ -48,7 +46,6 @@ public class WalletController {
 
     @GetMapping("/transactions")
     public ResponseEntity<List<Transaction>> getTransactions(@AuthenticationPrincipal UserDetails currentUser) {
-       // User principalUser = userService.getUserByName(currentUser.getUsername());
         Wallet wallet = walletService.findWalletByUserID(currentUser.getUsername());
         List<Transaction> transactions = walletService.getTransactionsForWallet(wallet.getId());
         return ResponseEntity.ok(transactions);
