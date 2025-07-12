@@ -138,7 +138,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Allow requests from your React frontend's origin
-        configuration.setAllowedOrigins(List.of("http://localhost:3000")); // Adjust if your frontend runs on a different port/domain
+        configuration.setAllowedOrigins(List.of("http://localhost:3000","http://localhost:8081")); // Adjust if your frontend runs on a different port/domain
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization","authorization", "Content-Type", "Cache-Control", "X-Requested-With", "Access-Control-Allow-Origin"));
         configuration.setAllowCredentials(true); // Allow cookies/authentication headers

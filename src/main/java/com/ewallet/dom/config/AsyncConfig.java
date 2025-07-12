@@ -21,7 +21,7 @@ public class AsyncConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(5); // Adjust as needed
         executor.setMaxPoolSize(10); // Adjust as needed
-        executor.setQueueCapacity(25); // Adjust as needed
+        executor.setQueueCapacity(250); // Adjust as needed
         executor.setThreadNamePrefix("eWalletThread-");
         executor.initialize();
         return executor;
