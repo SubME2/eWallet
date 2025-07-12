@@ -5,10 +5,13 @@ import com.ewallet.dom.dto.DepositRequest;
 import com.ewallet.dom.dto.RegisterRequest;
 import com.ewallet.dom.dto.TransferRequest;
 import com.ewallet.dom.dto.WithdrawRequest;
+import com.ewallet.dom.exception.EWalletConcurrentExecutionException;
 import com.ewallet.dom.exception.InsufficientFundsException;
+import com.ewallet.dom.executable.WithdrawFundX;
 import com.ewallet.dom.model.Transaction;
 import com.ewallet.dom.model.User;
 import com.ewallet.dom.model.Wallet;
+import com.ewallet.dom.record.RepoRecord;
 import com.ewallet.dom.record.TransactionRequest;
 import com.ewallet.dom.repository.IdempotencyKeyRepository;
 import com.ewallet.dom.repository.TransactionRepository;
@@ -306,16 +309,16 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("Should prevent transfers exceeding balance under concurrency")
     void shouldPreventOverdraftUnderConcurrencyWithRetry() throws InterruptedException, ExecutionException {
-        int initialBalance = 100; // Small initial balance
+        int initialBalance = 1000; // Small initial balance
         int numConcurrentWithdrawals = 100; // Many attempts to withdraw
-        double withdrawalAmount = 5.0; // Small amount per withdrawal
+        double withdrawalAmount = 150.0; // Small amount per withdrawal
 
         // Deposit initial funds
         CompletableFuture<Wallet> completableFuture = walletService.processTransaction(TransactionMappingService
                 .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalance, UUID.randomUUID().toString())), true);
         completableFuture.get();
         //walletService.deposit(testUser.getId(), initialBalance, UUID.randomUUID().toString(), 0);
-        assertEquals(initialBalance, walletRepository.findByUserId(testUser.getId()).get().getBalance());
+        assertEquals(initialBalance, walletRepository.findByUserId(testUser.getId()).orElseThrow().getBalance());
 
         ExecutorService executorService = Executors.newFixedThreadPool(numConcurrentWithdrawals);
         CountDownLatch latch = new CountDownLatch(numConcurrentWithdrawals);
@@ -328,11 +331,16 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
                 try {
                     CompletableFuture<Wallet> completableFuture2 = walletService.processTransaction(TransactionMappingService.fromWithdrawRequest(testUser.getUsername(),getWithDrawRequest(withdrawalAmount, idempotencyKey)), true);
                     completableFuture2.get();
+//                    (new WithdrawFundX(new RepoRecord(userRepository,walletRepository,transactionRepository,idempotencyKeyRepository),
+//                            new TransactionRequest(testUser.getUsername(),null,withdrawalAmount,idempotencyKey,TransactionRequestType.WITHDRAW,0))).run();
                     //walletService.withdraw(testUser.getId(), withdrawalAmount, idempotencyKey);
                     successfulWithdrawals.incrementAndGet();
                 } catch (InsufficientFundsException e) {
                     // This is expected for some operations once balance is depleted
                     System.out.println("Withdrawal failed for thread " + threadNum + ": Insufficient funds.");
+                }
+                catch (EWalletConcurrentExecutionException | IllegalArgumentException e){
+                    System.err.println("Withdrawal failed for thread " + threadNum + ": " + e.getMessage());
                 } catch (Exception e) {
                     System.err.println("Withdrawal failed for thread " + threadNum + ": " + e.getMessage());
                     e.printStackTrace();
@@ -347,7 +355,7 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
         executorService.awaitTermination(5, TimeUnit.SECONDS);
 
         // Verify final balance is not negative
-        Wallet finalWallet = walletRepository.findByUserId(testUser.getId()).get();
+        Wallet finalWallet = walletRepository.findByUserId(testUser.getId()).orElseThrow();
         // The balance should be initialBalance - (successfulWithdrawals * withdrawalAmount)
         // and should be 0 if all funds are depleted
         double expectedFinalBalance = initialBalance - (successfulWithdrawals.get() * withdrawalAmount);
@@ -364,6 +372,73 @@ class WalletServiceConcurrentOpsIntegrationTest extends BaseIntegrationTest {
 
         System.out.println("Total successful withdrawals: " + successfulWithdrawals.get());
         System.out.println("Final balance: " + finalWallet.getBalance());
+        assertThat(finalWallet.getBalance()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Success rate for withdrawal should be 100%")
+    void concurrentWithdrawSuccessRate() throws InterruptedException, ExecutionException {
+        int initialBalance = 1000; // Small initial balance
+        int numConcurrentWithdrawals = 100; // Many attempts to withdraw
+        double withdrawalAmount = 10.0; // Small amount per withdrawal
+
+        // Deposit initial funds
+        CompletableFuture<Wallet> completableFuture = walletService.processTransaction(TransactionMappingService
+                .fromDepositRequest(testUser.getUsername(),getDepositRequest(initialBalance, UUID.randomUUID().toString())), true);
+        completableFuture.get();
+        //walletService.deposit(testUser.getId(), initialBalance, UUID.randomUUID().toString(), 0);
+        assertEquals(initialBalance, walletRepository.findByUserId(testUser.getId()).orElseThrow().getBalance());
+
+        ExecutorService executorService = Executors.newFixedThreadPool(numConcurrentWithdrawals);
+        CountDownLatch latch = new CountDownLatch(numConcurrentWithdrawals);
+        AtomicInteger successfulWithdrawals = new AtomicInteger(0);
+
+        for (int i = 0; i < numConcurrentWithdrawals; i++) {
+            final int threadNum = i;
+            executorService.submit(() -> {
+                String idempotencyKey = UUID.randomUUID().toString();
+                try {
+                    CompletableFuture<Wallet> completableFuture2 = walletService.processTransaction(TransactionMappingService.fromWithdrawRequest(testUser.getUsername(),getWithDrawRequest(withdrawalAmount, idempotencyKey)), true);
+                    completableFuture2.get();
+                    successfulWithdrawals.incrementAndGet();
+                } catch (InsufficientFundsException e) {
+                    // This is expected for some operations once balance is depleted
+                    System.out.println("Withdrawal failed for thread " + threadNum + ": Insufficient funds.");
+                }
+                catch (EWalletConcurrentExecutionException | IllegalArgumentException e){
+                    System.err.println("Withdrawal failed for thread " + threadNum + ": " + e.getMessage());
+                } catch (Exception e) {
+                    System.err.println("Withdrawal failed for thread " + threadNum + ": " + e.getMessage());
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        assertTrue(latch.await(30, TimeUnit.SECONDS), "All withdrawals should complete within timeout");
+        executorService.shutdown();
+        executorService.awaitTermination(5, TimeUnit.SECONDS);
+
+        // Verify final balance is not negative
+        Wallet finalWallet = walletRepository.findByUserId(testUser.getId()).orElseThrow();
+        // The balance should be initialBalance - (successfulWithdrawals * withdrawalAmount)
+        // and should be 0 if all funds are depleted
+        double expectedFinalBalance = initialBalance - (successfulWithdrawals.get() * withdrawalAmount);
+        assertTrue(finalWallet.getBalance() >= 0); // Balance should never go negative
+        assertEquals(expectedFinalBalance, finalWallet.getBalance(), 0.001); // Check against calculated total
+
+        // Verify that the total amount withdrawn doesn't exceed the initial balance
+        double totalWithdrawn = successfulWithdrawals.get() * withdrawalAmount;
+        assertTrue(totalWithdrawn <= initialBalance);
+
+        // Verify transaction count: initial deposit + successfulWithdrawals
+        List<Transaction> transactions = transactionRepository.findByWalletIdOrderByTimestampDesc(finalWallet.getId());
+        assertThat(transactions).hasSize(1 + successfulWithdrawals.get());
+
+        System.out.println("Total successful withdrawals: " + successfulWithdrawals.get());
+        System.out.println("Final balance: " + finalWallet.getBalance());
+        assertEquals(100.0, ((double) successfulWithdrawals.get() /numConcurrentWithdrawals) * 100,0.1);
     }
 
     @Test

@@ -13,13 +13,13 @@ import com.ewallet.dom.repository.IdempotencyKeyRepository;
 import com.ewallet.dom.repository.TransactionRepository;
 import com.ewallet.dom.repository.UserRepository;
 import com.ewallet.dom.repository.WalletRepository;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.StaleObjectStateException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -27,17 +27,11 @@ import java.util.function.Supplier;
 
 
 @Slf4j
-@RequiredArgsConstructor
-public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet> {
+public record WithdrawFundX(RepoRecord repoRecord, TransactionRequest transactionRequest) implements  Callable<Wallet>, Supplier<Wallet> {
 
-    private final RepoRecord repoRecord;
-    private final TransactionRequest transactionRequest;
 
-    @Getter
-    private Wallet result;
-
+    @Transactional
     private Wallet withdrawFund(final TransactionRequest transactionRequest) {
-
         final String senderUserName = transactionRequest.senderUserName();
         final double amount = transactionRequest.amount();
         final String idempotencyKey = transactionRequest.idempotencyKey();
@@ -86,6 +80,7 @@ public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet
         transactionRepository.save(transaction);
 
         // Record the idempotency key after successful processing
+
         idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKey, "WITHDRAWAL", user));
 
         return wallet;
@@ -96,8 +91,8 @@ public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet
             TransactionRequest transactionRequestLocal = transactionRequest.retryCount() == 0  ? transactionRequest
                     : transactionRequest.getTransactionRequestAndIncrementRetryCount();
             try {
-                result = withdrawFund(transactionRequestLocal);
-                if (result != null) return result;
+                Wallet wallet = withdrawFund(transactionRequestLocal);
+                if (wallet != null) return wallet;
             } catch (ObjectOptimisticLockingFailureException | StaleObjectStateException e) {
                 log.error("Error in withdraw transaction. ", e);
             }
@@ -105,12 +100,6 @@ public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet
         throw new EWalletConcurrentExecutionException(transactionRequest,"FAILED::".repeat(20));
     }
 
-
-
-    @Override
-    public void run() {
-        result = withdrawFund();
-    }
 
     @Override
     public Wallet call() {

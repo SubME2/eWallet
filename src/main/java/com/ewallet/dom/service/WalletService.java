@@ -19,10 +19,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.StaleObjectStateException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
@@ -39,12 +39,12 @@ public class WalletService {
 
     //ExecutorService service = Executors.newCachedThreadPool();
 
-    private final Executor taskExecutor;
+    private final ThreadPoolTaskExecutor taskExecutor;
 
     public WalletService(UserRepository userRepository, WalletRepository walletRepository,
                          TransactionRepository transactionRepository,
                          IdempotencyKeyRepository idempotencyKeyRepository,
-                         @Qualifier("taskExecutor") Executor taskExecutor) {
+                         @Qualifier("taskExecutor") ThreadPoolTaskExecutor taskExecutor) {
         this.userRepository = userRepository;
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
