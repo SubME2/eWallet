@@ -20,6 +20,7 @@ import org.hibernate.StaleObjectStateException;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -27,36 +28,28 @@ import java.util.function.Supplier;
 
 
 @Slf4j
-@RequiredArgsConstructor
-public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet> {
+public class WithdrawFund extends BaseExecutable {
 
-    private final RepoRecord repoRecord;
-    private final TransactionRequest transactionRequest;
 
-    @Getter
-    private Wallet result;
+    public WithdrawFund(RepoRecord repoRecord, TransactionRequest transactionRequest) {
+        super(repoRecord, transactionRequest);
+    }
 
-    private Wallet withdrawFund(final TransactionRequest transactionRequest) {
+    @Override
+    public Wallet execute(final TransactionRequest transactionRequest) {
 
         final String senderUserName = transactionRequest.senderUserName();
         final double amount = transactionRequest.amount();
         final String idempotencyKey = transactionRequest.idempotencyKey();
 
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Withdrawal amount must be positive.");
-        }
+        validateAmount(amount);
 
-        UserRepository userRepository = repoRecord.userRepository(); //(UserRepository) getRepository(UserRepository.class,rfs);
-        WalletRepository walletRepository = repoRecord.walletRepository(); //(WalletRepository) getRepository(WalletRepository.class,rfs);
-        TransactionRepository transactionRepository = repoRecord.transactionRepository();//(TransactionRepository) getRepository(TransactionRepository.class,rfs);
-        IdempotencyKeyRepository idempotencyKeyRepository = repoRecord.idempotencyKeyRepository();//(IdempotencyKeyRepository) getRepository(IdempotencyKeyRepository.class,rfs);
-        User user = userRepository.findByUsername(senderUserName).orElseThrow();
+        User user = findUserByUsername(senderUserName);
 
 
-        Wallet wallet = walletRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + senderUserName)); // This will fetch the sender's wallet as part of the transaction
+        Wallet wallet = findWalletByUserId(user);
         // Idempotency check
-        if (idempotencyKeyRepository.existsByKey(idempotencyKey)) {
+        if (existsByKey(idempotencyKey)) {
             log.debug("Idempotent withdrawal request detected and ignored for key: {}", idempotencyKey);
             return wallet;
         }
@@ -68,9 +61,8 @@ public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet
         double preBalance = wallet.getBalance();
         double postBalance = preBalance - amount;
         wallet.setBalance(postBalance);
-        //saveWallet(senderWallet); // Saves and increments version for senderWallet
 
-        walletRepository.saveAll(List.of(wallet));
+        saveWallets(wallet);
 
         // Create sender's transaction record
         Transaction transaction = new Transaction(new TransactionDetailRecord(
@@ -83,42 +75,11 @@ public class WithdrawFund implements Runnable, Callable<Wallet>, Supplier<Wallet
                 Transaction.TransactionType.WITHDRAWAL
         ));
 
-        transactionRepository.save(transaction);
+        saveTransactions(transaction);
 
         // Record the idempotency key after successful processing
-        idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKey, "WITHDRAWAL", user));
+        saveIdempotencyKey(idempotencyKey,user);
 
         return wallet;
-    }
-
-    public Wallet withdrawFund() {
-        while ( transactionRequest.retryCount() < 3) {
-            TransactionRequest transactionRequestLocal = transactionRequest.retryCount() == 0  ? transactionRequest
-                    : transactionRequest.getTransactionRequestAndIncrementRetryCount();
-            try {
-                result = withdrawFund(transactionRequestLocal);
-                if (result != null) return result;
-            } catch (ObjectOptimisticLockingFailureException | StaleObjectStateException e) {
-                log.error("Error in withdraw transaction. ", e);
-            }
-        }
-        throw new EWalletConcurrentExecutionException(transactionRequest,"FAILED::".repeat(20));
-    }
-
-
-
-    @Override
-    public void run() {
-        result = withdrawFund();
-    }
-
-    @Override
-    public Wallet call() {
-        return withdrawFund();
-    }
-
-    @Override
-    public Wallet get() {
-        return withdrawFund();
     }
 }
