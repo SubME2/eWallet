@@ -24,37 +24,29 @@ import java.util.function.Supplier;
 
 
 @Slf4j
-@RequiredArgsConstructor
-public class DepositFund implements Runnable, Callable<Wallet>, Supplier<Wallet> {
+public class DepositFund extends BaseExecutable {
 
-    private final RepoRecord repoRecord;
-    private final TransactionRequest transactionRequest;
-    private TransactionRequest transactionRequestRetry;
 
-    @Getter
-    private Wallet result;
 
-    private Wallet depositFund(final TransactionRequest transactionRequest) {
+    public DepositFund(RepoRecord repoRecord, TransactionRequest transactionRequest) {
+        super(repoRecord,transactionRequest);
+    }
+
+    @Override
+    public Wallet execute(final TransactionRequest transactionRequest) {
 
         final String senderUserName = transactionRequest.senderUserName();
         final double amount = transactionRequest.amount();
         final String idempotencyKey = transactionRequest.idempotencyKey();
 
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Deposit amount must be positive.");
-        }
+        validateAmount(amount);
 
-        UserRepository userRepository = repoRecord.userRepository(); //(UserRepository) getRepository(UserRepository.class,rfs);
-        WalletRepository walletRepository = repoRecord.walletRepository(); //(WalletRepository) getRepository(WalletRepository.class,rfs);
-        TransactionRepository transactionRepository = repoRecord.transactionRepository();//(TransactionRepository) getRepository(TransactionRepository.class,rfs);
-        IdempotencyKeyRepository idempotencyKeyRepository = repoRecord.idempotencyKeyRepository();//(IdempotencyKeyRepository) getRepository(IdempotencyKeyRepository.class,rfs);
-        User user = userRepository.findByUsername(senderUserName).orElseThrow();
+        User user = findUserByUsername(senderUserName);
 
 
-        Wallet wallet = walletRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Wallet not found for userId: " + senderUserName)); // This will fetch the sender's wallet as part of the transaction
+        Wallet wallet = findWalletByUserId(user);
         // Idempotency check
-        if (idempotencyKeyRepository.existsByKey(idempotencyKey)) {
+        if (existsByKey(idempotencyKey)) {
             log.debug("Idempotent transfer request detected and ignored for key: {}", idempotencyKey);
             return wallet;
         }
@@ -65,7 +57,7 @@ public class DepositFund implements Runnable, Callable<Wallet>, Supplier<Wallet>
         wallet.setBalance(postBalance);
         //saveWallet(senderWallet); // Saves and increments version for senderWallet
 
-        walletRepository.saveAll(List.of(wallet));
+        saveWallets(wallet);
 
         // Create sender's transaction record
         Transaction transaction = new Transaction(new TransactionDetailRecord(
@@ -78,41 +70,11 @@ public class DepositFund implements Runnable, Callable<Wallet>, Supplier<Wallet>
                 Transaction.TransactionType.DEPOSIT
         ));
 
-        transactionRepository.save(transaction);
+        saveTransactions(transaction);
         // Record the idempotency key after successful processing
-        idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKey, "DEPOSIT", user));
+        saveIdempotencyKey(idempotencyKey, user);
 
-//            tx.commit();
-        result = wallet;
         return wallet;
     }
 
-
-    public Wallet depositFund() {
-        TransactionRequest transactionRequestLocal = transactionRequestRetry != null ? transactionRequestRetry : transactionRequest;
-        try {
-            return depositFund(transactionRequestLocal);
-        } catch (ObjectOptimisticLockingFailureException | StaleObjectStateException e) {
-            if (transactionRequest.retryCount() < 3){
-                transactionRequestRetry = transactionRequestLocal.getTransactionRequestAndIncrementRetryCount();
-                return depositFund();
-            }
-            else throw new EWalletConcurrentExecutionException(transactionRequest,"FAILEDDDDDDDDDDDD");
-        }
-    }
-
-    @Override
-    public void run() {
-        result = depositFund();
-    }
-
-    @Override
-    public Wallet call() {
-        return depositFund();
-    }
-
-    @Override
-    public Wallet get() {
-        return depositFund();
-    }
 }
