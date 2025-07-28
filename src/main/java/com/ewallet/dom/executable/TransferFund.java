@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class TransferFund  extends BaseExecutable {
+public final class TransferFund  extends BaseExecutable {
 
 
     public TransferFund(RepoRecord repoRecord, TransactionRequest transactionRequest) {
